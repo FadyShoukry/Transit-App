@@ -11,7 +11,10 @@ __email__ = "fady-magdy@hotmail.co.uk"
 import requests
 import re
 import os
-## EXCEPTIONS ##
+import time
+
+# Custom Exceptions
+
 class HTTPError(Exception):
     """
     A generic HTTP error raised when the get request fails
@@ -23,12 +26,40 @@ class HTTPError(Exception):
     def __str__(self):
         return "HTTPError " + str(self.code) + "! Response: " + self.error_text
 
-################
+class JSONValidationError(Exception):
+    # We'll implement this later
+    pass
+
+class GoogleAPIError(Exception):
+    # We'll implement this later
+    pass
+
+# Client
+
 class MapsAPIClient(object):
     
     API_KEY = os.environ.get('GOOGLE_API_KEY', None) 
     PLACES_API_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     ROUTING_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
+    GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+
+    # Private Member Methods
+    
+    def _validate_result(self, resp):
+        # Generic HTTP Error checking
+        if resp.status_code != 200:
+            raise HTTPError(code=status_code, error_text=resp.text())
+        else:
+            try:
+                json_result = resp.json()
+            except:
+                raise JSONValidationError
+
+        # Google-specific error handling
+        if json_result.get('status', '') != 'OK':
+            raise GoogleAPIError
+
+        return json_result
 
     def _get_places(self, query_params={}):
         """
@@ -37,10 +68,11 @@ class MapsAPIClient(object):
         query_params['key'] = self.API_KEY
         resp = requests.get(self.PLACES_API_URL, params=query_params)
 
-        if resp.status_code != 200:
-            raise HTTPError(code=status_code, error_text=resp.text())
+        resp_json = self._validate_result(resp)
         
-        return resp
+        return resp_json
+
+    # Public API
 
     def get_transit_stops(self, location, radius=None):
         """
@@ -56,7 +88,42 @@ class MapsAPIClient(object):
 
         return self._get_places(query_params)
 
-        
-        
+    def geocode(self, address):
+        """
+        Address (String) -> Coordinates ((Double, Double))
+        Retrieve first result from geocoding; if no results, return None
+        """
+        query_params = {'key': self.API_KEY,
+                        'address': address}
+
+        resp = requests.get(self.GEOCODING_API_URL, params=query_params)
+        resp_json = self._validate_result(resp)
+
+        results = resp_json['results']
+        if len(results) == 0:
+            return None
+
+        first_result = results[0]
+        lat = first_result['geometry']['location']['lat']
+        lon = first_result['geometry']['location']['lng']
+
+        return (lat,lon)
+
+    def get_transit_routes(self, org, des, time=int(time.time())):
+        """
+        (Coordinate -> Coordinate -> Time (String) -> JSON)
+        Get transit routes from origin to destination
+        """
+        query_params = {'key': self.API_KEY,
+                        'origin': ("%s,%s" % (str(org[0]), str(org[1]))),
+                        'destination': ("%s,%s" % (str(des[0]), str(des[1]))),
+                        'departure_time': time,
+                        'mode': 'transit'}
+
+        resp = requests.get(self.ROUTING_API_URL, params=query_params)
+        resp_json = self._validate_result(resp)
+
+        return resp_json
+
 
 
