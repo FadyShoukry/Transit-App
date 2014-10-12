@@ -31,8 +31,14 @@ class JSONValidationError(Exception):
     pass
 
 class GoogleAPIError(Exception):
-    # We'll implement this later
-    pass
+    """
+    Raised when Google API status does not return 'OK'
+    """
+    def __init__(self, content):
+        self.content = content
+
+    def __str__(self):
+        return "Google API Error: " + self.content
 
 # Client
 
@@ -56,8 +62,9 @@ class MapsAPIClient(object):
                 raise JSONValidationError
 
         # Google-specific error handling
-        if json_result.get('status', '') != 'OK':
-            raise GoogleAPIError
+        google_status = json_result.get('status', '') 
+        if google_status != 'OK':
+            raise GoogleAPIError(google_status)
 
         return json_result
 
@@ -109,7 +116,7 @@ class MapsAPIClient(object):
 
         return (lat,lon)
 
-    def get_transit_routes(self, org, des, time=int(time.time())):
+    def get_transit_routes(self, org, des, time=str(int(time.time()))):
         """
         (Coordinate -> Coordinate -> Time (String) -> JSON)
         Get transit routes from origin to destination
@@ -124,6 +131,3 @@ class MapsAPIClient(object):
         resp_json = self._validate_result(resp)
 
         return resp_json
-
-
-
