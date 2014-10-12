@@ -130,4 +130,19 @@ class MapsAPIClient(object):
         resp = requests.get(self.ROUTING_API_URL, params=query_params)
         resp_json = self._validate_result(resp)
 
-        return resp_json
+        return resp_json['routes']
+
+    def get_fastest_driving_route(self, org, des):
+        """
+        (Coordinate -> Coordinate -> JSON)
+        Get driving routes frmo origin to destination
+        """
+        query_params = {'key': self.API_KEY,
+                        'origin': ("%s,%s" % (str(org[0]), str(org[1]))),
+                        'destination': ("%s,%s" % (str(des[0]), str(des[1]))),
+                        'mode': 'driving'}
+
+        resp = requests.get(self.ROUTING_API_URL, params=query_params)
+        resp_json = self._validate_result(resp)
+
+        return resp_json['routes'][0]
