@@ -8,9 +8,16 @@ __email__ = "jamil.dhanani@gmail.com"
 import requests
 import re
 import os
+import sys
 import time
 
 import api_client
+
+def format_time(seconds):
+    if seconds > 3600:
+        return ('%d hour %d mins' % (seconds / 3600, (seconds % 3600) / 60))
+    else:
+        return ('%d mins' % (seconds / 60))
 
 def humanize_route(route):
     return map(lambda step: (step['html_instructions']),
@@ -21,6 +28,12 @@ def get_waypoints(route):
                              step['end_location']['lng']), 
                route['legs'][0]['steps'])
 
+def get_steps(route):
+    r = route['legs'][0]['steps']
+    return map(lambda step: ('%s (%s)' % (step['html_instructions'], 
+                                          step['duration']['text'])),
+                r)
+
 class WaypointRouter(object):
     def __init__(self):
         self.client = api_client.MapsAPIClient()
@@ -30,7 +43,9 @@ class WaypointRouter(object):
         
         # Get alternate routes -- from waypoint to destination
         # Assuming you drive to waypoint, and transit from there 
-        alt_routes = map(lambda waypoint: self.client.get_transit_routes(waypoint, t), waypoints)
+        alt_routes = map(lambda waypoint: 
+                            self.client.get_transit_routes(waypoint, t, delay=True),
+                         waypoints)
 
         # Flatten list; create list of possible routes
         alt_routes = reduce(lambda x,y: x + y, alt_routes)
@@ -69,5 +84,8 @@ class WaypointRouter(object):
                                         driving_r['duration']['text']))
             print('Transit to %s (%s)' % (transit_r['end_address'], 
                                           transit_r['duration']['text']))
+            map(lambda s: sys.stdout.write('\t' + s + '\n'), get_steps(route))
+            print('Total time: %s' % format_time(driving_r['duration']['value'] + 
+                                                 transit_r['duration']['value']))
             print('--------')
 
