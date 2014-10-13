@@ -116,7 +116,7 @@ class MapsAPIClient(object):
 
         return (lat,lon)
 
-    def get_transit_routes(self, org, des, time=str(int(time.time()))):
+    def get_transit_routes(self, org, des, t=str(int(time.time())), delay=False):
         """
         (Coordinate -> Coordinate -> Time (String) -> JSON)
         Get transit routes from origin to destination
@@ -124,11 +124,14 @@ class MapsAPIClient(object):
         query_params = {'key': self.API_KEY,
                         'origin': ("%s,%s" % (str(org[0]), str(org[1]))),
                         'destination': ("%s,%s" % (str(des[0]), str(des[1]))),
-                        'departure_time': time,
+                        'departure_time': t,
                         'mode': 'transit'}
 
         resp = requests.get(self.ROUTING_API_URL, params=query_params)
         resp_json = self._validate_result(resp)
+
+        if (delay):
+            time.sleep(0.1)
 
         return resp_json['routes']
 
@@ -146,3 +149,5 @@ class MapsAPIClient(object):
         resp_json = self._validate_result(resp)
 
         return resp_json['routes'][0]
+
+
